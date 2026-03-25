@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AthenaLiteService - API microservice
+
+Globals:
+  Api:
+    EndpointConfiguration: REGIONAL
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Default: athenalite-data
+  DynamoTableName:
+    Type: String
+    Default: AthenaLiteTables
+  DynamoQueryTableName:
+    Type: String
+    Default: AthenaLiteQueries
+
+Resources:
+
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+
+  MetadataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: tableName
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: tableName
+          KeyType: RANGE
+
+  QueryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoQueryTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: queryId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: queryId
+          KeyType: RANGE
+
+  QueryQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: AthenaLiteQueryQueue
+      VisibilityTimeout: 120
+
+  AthenaLiteServiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: org.example.StreamLambdaHandler::handleRequest
+      Runtime: java17
+      CodeUri: .
+      MemorySize: 1024
+      Timeout: 30
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref DataBucket
+          AWS_REGION: ap-south-1
+          DYNAMODB_TABLE: !Ref MetadataTable
+          DYNAMODB_QUERY_TABLE: !Ref QueryTable
+          QUERY_QUEUE_URL: !Ref QueryQueue
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3CrudPolicy:
+            BucketName: !Ref S3BucketName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DynamoTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DynamoQueryTableName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt QueryQueue.QueueName
+      Events:
+        ProxyResource:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: any
+
+Outputs:
+  ApiUrl:
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod'
+  DataBucketName:
+    Value: !Ref DataBucket
+  DataBucketArn:
+    Value: !GetAtt DataBucket.Arn
+  QueryQueueUrl:
+    Value: !Ref QueryQueue
+  QueryQueueArn:
+    Value: !GetAtt QueryQueue.Arn
+  MetadataTableName:
+    Value: !Ref MetadataTable
+  QueryTableName:
+    Value: !Ref QueryTable
