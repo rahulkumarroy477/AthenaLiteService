@@ -53,14 +53,12 @@ public class QueryController {
         String queryId = "qr_" + System.currentTimeMillis();
         String resultKey = "results/" + userId + "/" + queryId + ".csv";
 
-        // Save RUNNING status to DDB
         QueryMetadata qm = new QueryMetadata();
         qm.setUserId(userId);
         qm.setQueryId(queryId);
         qm.setStatus("RUNNING");
         dynamoService.saveQuery(qm);
 
-        // Dispatch to SQS
         QueryJob job = new QueryJob(userId, tableName, sql, meta.getS3ParquetKey(), resultKey);
         sqsService.sendMessage(mapper.writeValueAsString(job));
         log.info("Dispatched query job {} for table {}", queryId, tableName);

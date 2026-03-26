@@ -1,6 +1,5 @@
 package org.example;
 
-
 import com.amazonaws.serverless.proxy.internal.LambdaContainerHandler;
 import com.amazonaws.serverless.proxy.internal.testutils.AwsProxyRequestBuilder;
 import com.amazonaws.serverless.proxy.internal.testutils.MockLambdaContext;
@@ -27,6 +26,13 @@ public class StreamLambdaHandlerTest {
 
     @BeforeAll
     public static void setUp() {
+        // Set required env-backed properties so Spring beans can initialize
+        System.setProperty("aws.s3.bucket", "test-bucket");
+        System.setProperty("aws.s3.region", "ap-south-1");
+        System.setProperty("aws.sqs.query-queue-url", "https://sqs.ap-south-1.amazonaws.com/000000000000/test");
+        System.setProperty("aws.dynamodb.table", "TestTables");
+        System.setProperty("aws.dynamodb.query-table", "TestQueries");
+
         handler = new StreamLambdaHandler();
         lambdaContext = new MockLambdaContext();
     }
@@ -34,8 +40,8 @@ public class StreamLambdaHandlerTest {
     @Test
     public void ping_streamRequest_respondsWithHello() {
         InputStream requestStream = new AwsProxyRequestBuilder("/ping", HttpMethod.GET)
-                                            .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON)
-                                            .buildStream();
+                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON)
+                .buildStream();
         ByteArrayOutputStream responseStream = new ByteArrayOutputStream();
 
         handle(requestStream, responseStream);
@@ -43,9 +49,7 @@ public class StreamLambdaHandlerTest {
         AwsProxyResponse response = readResponse(responseStream);
         assertNotNull(response);
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatusCode());
-
         assertFalse(response.isBase64Encoded());
-
         assertTrue(response.getBody().contains("pong"));
         assertTrue(response.getBody().contains("Hello, World!"));
 
@@ -56,8 +60,8 @@ public class StreamLambdaHandlerTest {
     @Test
     public void invalidResource_streamRequest_responds404() {
         InputStream requestStream = new AwsProxyRequestBuilder("/pong", HttpMethod.GET)
-                                            .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON)
-                                            .buildStream();
+                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON)
+                .buildStream();
         ByteArrayOutputStream responseStream = new ByteArrayOutputStream();
 
         handle(requestStream, responseStream);

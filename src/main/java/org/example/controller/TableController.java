@@ -41,7 +41,7 @@ public class TableController {
         if (meta == null) return ResponseEntity.notFound().build();
 
         try {
-            List<String> columns = mapper.readValue(meta.getColumns(), new TypeReference<>() {});
+            List<Map<String, String>> columns = mapper.readValue(meta.getColumns(), new TypeReference<>() {});
             return ResponseEntity.ok(Map.of("table", meta.getTableName(), "status", meta.getStatus(), "columns", columns));
         } catch (Exception e) {
             return ResponseEntity.ok(Map.of("table", meta.getTableName(), "status", meta.getStatus(), "columns", List.of()));

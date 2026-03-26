@@ -25,7 +25,8 @@ public class UploadController {
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> upload(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "userId", defaultValue = "default") String userId) throws IOException {
+            @RequestParam(value = "userId", defaultValue = "default") String userId,
+            @RequestParam(value = "tableName", required = false) String customTableName) throws IOException {
 
         String originalName = file.getOriginalFilename();
         if (originalName == null || originalName.isBlank()) {
@@ -37,8 +38,10 @@ public class UploadController {
             return ResponseEntity.badRequest().body(Map.of("error", "unsupported file type: " + extension));
         }
 
-        String tableName = originalName.replaceAll("\\.[^.]+$", "")
-                .replaceAll("[^a-zA-Z0-9_]", "_").toLowerCase();
+        String tableName = customTableName != null && !customTableName.isBlank()
+                ? customTableName.replaceAll("[^a-zA-Z0-9_]", "_").toLowerCase()
+                : originalName.replaceAll("\\.[^.]+$", "")
+                        .replaceAll("[^a-zA-Z0-9_]", "_").toLowerCase();
         String s3Key = "raw/" + userId + "/" + tableName + "." + extension;
 
         s3Service.uploadFile(s3Key, file.getBytes(), file.getContentType());

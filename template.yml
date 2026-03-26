@@ -9,7 +9,7 @@ Globals:
 Parameters:
   S3BucketName:
     Type: String
-    Default: athenalite-data
+    Default: athenalite-data-ap
   DynamoTableName:
     Type: String
     Default: AthenaLiteTables
