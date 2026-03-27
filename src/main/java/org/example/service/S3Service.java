@@ -31,5 +31,15 @@ public class S3Service {
                 .build()).asByteArray();
     }
 
+    public void deleteFile(String key) {
+        s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+    }
+
+    public void copyFile(String sourceKey, String destKey) {
+        s3.copyObject(CopyObjectRequest.builder()
+                .sourceBucket(bucket).sourceKey(sourceKey)
+                .destinationBucket(bucket).destinationKey(destKey).build());
+    }
+
     public String getBucket() { return bucket; }
 }

@@ -40,6 +40,10 @@ public class DynamoService {
         return tableMetadata.getItem(r -> r.key(k -> k.partitionValue(userId).sortValue(tableName)));
     }
 
+    public void deleteTable(String userId, String tableName) {
+        tableMetadata.deleteItem(r -> r.key(k -> k.partitionValue(userId).sortValue(tableName)));
+    }
+
     // Query metadata operations
     public void saveQuery(QueryMetadata metadata) {
         queryMetadata.putItem(metadata);
