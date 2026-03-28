@@ -3,6 +3,7 @@ package org.example.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.model.TableMetadata;
+import org.example.util.InputValidator;
 import org.example.service.DynamoService;
 import org.example.service.S3Service;
 import org.springframework.http.ResponseEntity;
@@ -70,8 +71,10 @@ public class TableController {
             @PathVariable String tableName,
             @RequestParam(value = "userId", defaultValue = "default") String userId,
             @RequestParam("newName") String newName) {
-        String sanitized = newName.replaceAll("[^a-zA-Z0-9_]", "_").toLowerCase();
-        if (sanitized.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "invalid name"));
+        String sanitized = InputValidator.sanitizeTableName(newName);
+        if (!InputValidator.isValidTableName(sanitized)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid table name"));
+        }
 
         TableMetadata existing = dynamoService.getTable(userId, tableName);
         if (existing == null) return ResponseEntity.notFound().build();

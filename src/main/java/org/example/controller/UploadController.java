@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.service.S3Service;
+import org.example.util.InputValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -39,9 +40,15 @@ public class UploadController {
         }
 
         String tableName = customTableName != null && !customTableName.isBlank()
-                ? customTableName.replaceAll("[^a-zA-Z0-9_]", "_").toLowerCase()
-                : originalName.replaceAll("\\.[^.]+$", "")
-                        .replaceAll("[^a-zA-Z0-9_]", "_").toLowerCase();
+                ? InputValidator.sanitizeTableName(customTableName)
+                : InputValidator.sanitizeTableName(originalName.replaceAll("\\.[^.]+$", ""));
+
+        if (!InputValidator.isValidTableName(tableName)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid table name"));
+        }
+        if (!InputValidator.isValidUserId(userId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid userId"));
+        }
         String s3Key = "raw/" + userId + "/" + tableName + "." + extension;
 
         s3Service.uploadFile(s3Key, file.getBytes(), file.getContentType());
