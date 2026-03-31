@@ -6,10 +6,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.enhanced.dynamodb.*;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class DynamoService {
@@ -51,5 +54,28 @@ public class DynamoService {
 
     public QueryMetadata getQuery(String userId, String queryId) {
         return queryMetadata.getItem(r -> r.key(k -> k.partitionValue(userId).sortValue(queryId)));
+    }
+
+    public long countRunningQueries(String userId) {
+        return queryMetadata.query(QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(k -> k.partitionValue(userId)))
+                .filterExpression(Expression.builder()
+                        .expression("#s = :running")
+                        .putExpressionName("#s", "status")
+                        .putExpressionValue(":running", AttributeValue.fromS("RUNNING"))
+                        .build())
+                .build())
+                .items().stream().count();
+    }
+
+    public long countDailyQueries(String userId) {
+        long midnightMs = java.time.LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC)
+                .toInstant().toEpochMilli();
+        String prefix = "qr_" + midnightMs;
+        return queryMetadata.query(QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.sortGreaterThanOrEqualTo(
+                        k -> k.partitionValue(userId).sortValue(prefix)))
+                .build())
+                .items().stream().count();
     }
 }

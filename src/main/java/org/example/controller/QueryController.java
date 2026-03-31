@@ -42,6 +42,14 @@ public class QueryController {
             return ResponseEntity.badRequest().body(Map.of("error", "missing 'query' field"));
         }
 
+        // Rate limiting: max 3 concurrent, 50 per day
+        if (dynamoService.countRunningQueries(userId) >= 3) {
+            return ResponseEntity.status(429).body(Map.of("error", "too many concurrent queries (max 3)"));
+        }
+        if (dynamoService.countDailyQueries(userId) >= 50) {
+            return ResponseEntity.status(429).body(Map.of("error", "daily query limit reached (max 50)"));
+        }
+
         TableMetadata meta = dynamoService.getTable(userId, tableName);
         if (meta == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "table not found: " + tableName));
