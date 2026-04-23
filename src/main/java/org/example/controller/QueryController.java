@@ -34,9 +34,9 @@ public class QueryController {
     }
 
     @PostMapping
-    public ResponseEntity<?> submitQuery(@RequestBody Map<String, String> request) throws Exception {
+    public ResponseEntity<?> submitQuery(@RequestBody Map<String, String> request,
+                                         @RequestParam(value = "userId", defaultValue = "default") String userId) throws Exception {
         String sql = request.get("query");
-        String userId = request.getOrDefault("userId", "default");
         String tableName = request.getOrDefault("tableName", "");
 
         if (!InputValidator.isValidUserId(userId)) {

@@ -20,7 +20,8 @@ import org.example.service.*;
     DynamoService.class,
     SqsService.class,
     CorsConfig.class,
-    org.example.config.GlobalExceptionHandler.class
+    org.example.config.GlobalExceptionHandler.class,
+    org.example.config.JwtAuthFilter.class
 })
 public class Application {
 

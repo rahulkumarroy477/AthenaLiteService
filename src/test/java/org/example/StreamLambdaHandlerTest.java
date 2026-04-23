@@ -58,7 +58,7 @@ public class StreamLambdaHandlerTest {
     }
 
     @Test
-    public void invalidResource_streamRequest_responds404() {
+    public void invalidResource_streamRequest_responds401WithoutAuth() {
         InputStream requestStream = new AwsProxyRequestBuilder("/pong", HttpMethod.GET)
                 .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON)
                 .buildStream();
@@ -68,7 +68,7 @@ public class StreamLambdaHandlerTest {
 
         AwsProxyResponse response = readResponse(responseStream);
         assertNotNull(response);
-        assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatusCode());
+        assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatusCode());
     }
 
     private void handle(InputStream is, ByteArrayOutputStream os) {
