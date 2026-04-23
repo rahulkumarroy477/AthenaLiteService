@@ -6,6 +6,8 @@ import org.example.model.TableMetadata;
 import org.example.util.InputValidator;
 import org.example.service.DynamoService;
 import org.example.service.S3Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +17,7 @@ import java.util.*;
 @RequestMapping("/api/tables")
 public class TableController {
 
+    private static final Logger log = LoggerFactory.getLogger(TableController.class);
     private final DynamoService dynamoService;
     private final S3Service s3Service;
     private final ObjectMapper mapper;
@@ -26,8 +29,11 @@ public class TableController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Map<String, String>>> listTables(
+    public ResponseEntity<?> listTables(
             @RequestParam(value = "userId", defaultValue = "default") String userId) {
+        if (!InputValidator.isValidUserId(userId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid userId"));
+        }
         return ResponseEntity.ok(dynamoService.getTablesForUser(userId).stream()
                 .map(t -> Map.of(
                         "name", t.getTableName(),
@@ -41,6 +47,10 @@ public class TableController {
     public ResponseEntity<?> getMetadata(
             @PathVariable String tableName,
             @RequestParam(value = "userId", defaultValue = "default") String userId) {
+        if (!InputValidator.isValidUserId(userId) || !InputValidator.isValidTableName(tableName)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid input"));
+        }
+
         TableMetadata meta = dynamoService.getTable(userId, tableName);
         if (meta == null) return ResponseEntity.notFound().build();
 
@@ -56,11 +66,20 @@ public class TableController {
     public ResponseEntity<?> deleteTable(
             @PathVariable String tableName,
             @RequestParam(value = "userId", defaultValue = "default") String userId) {
+        if (!InputValidator.isValidUserId(userId) || !InputValidator.isValidTableName(tableName)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid input"));
+        }
+
         TableMetadata meta = dynamoService.getTable(userId, tableName);
         if (meta == null) return ResponseEntity.notFound().build();
 
-        try { s3Service.deleteFile(meta.getS3RawKey()); } catch (Exception ignored) {}
-        try { s3Service.deleteFile(meta.getS3ParquetKey()); } catch (Exception ignored) {}
+        log.info("Deleting table '{}' for user '{}'", tableName, userId);
+        try { s3Service.deleteFile(meta.getS3RawKey()); } catch (Exception e) {
+            log.warn("Failed to delete S3 raw key for table '{}': {}", tableName, e.getMessage());
+        }
+        try { s3Service.deleteFile(meta.getS3ParquetKey()); } catch (Exception e) {
+            log.warn("Failed to delete S3 parquet key for table '{}': {}", tableName, e.getMessage());
+        }
         dynamoService.deleteTable(userId, tableName);
 
         return ResponseEntity.ok(Map.of("success", true, "deleted", tableName));
@@ -71,6 +90,10 @@ public class TableController {
             @PathVariable String tableName,
             @RequestParam(value = "userId", defaultValue = "default") String userId,
             @RequestParam("newName") String newName) {
+        if (!InputValidator.isValidUserId(userId) || !InputValidator.isValidTableName(tableName)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid input"));
+        }
+
         String sanitized = InputValidator.sanitizeTableName(newName);
         if (!InputValidator.isValidTableName(sanitized)) {
             return ResponseEntity.badRequest().body(Map.of("error", "invalid table name"));
@@ -80,8 +103,10 @@ public class TableController {
         if (existing == null) return ResponseEntity.notFound().build();
 
         if (dynamoService.getTable(userId, sanitized) != null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "table '" + sanitized + "' already exists"));
+            return ResponseEntity.badRequest().body(Map.of("error", "table already exists"));
         }
+
+        log.info("Renaming table '{}' to '{}' for user '{}'", tableName, sanitized, userId);
 
         // Copy S3 files to new keys
         String rawExt = existing.getS3RawKey().substring(existing.getS3RawKey().lastIndexOf('.'));
@@ -103,8 +128,12 @@ public class TableController {
         dynamoService.saveTable(renamed);
 
         // Delete old S3 files + DynamoDB record
-        try { s3Service.deleteFile(existing.getS3RawKey()); } catch (Exception ignored) {}
-        try { s3Service.deleteFile(existing.getS3ParquetKey()); } catch (Exception ignored) {}
+        try { s3Service.deleteFile(existing.getS3RawKey()); } catch (Exception e) {
+            log.warn("Failed to delete old S3 raw key during rename: {}", e.getMessage());
+        }
+        try { s3Service.deleteFile(existing.getS3ParquetKey()); } catch (Exception e) {
+            log.warn("Failed to delete old S3 parquet key during rename: {}", e.getMessage());
+        }
         dynamoService.deleteTable(userId, tableName);
 
         return ResponseEntity.ok(Map.of("success", true, "oldName", tableName, "newName", sanitized));

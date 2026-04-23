@@ -7,6 +7,7 @@ import org.example.model.TableMetadata;
 import org.example.service.DynamoService;
 import org.example.service.S3Service;
 import org.example.service.SqsService;
+import org.example.util.InputValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
@@ -38,8 +39,14 @@ public class QueryController {
         String userId = request.getOrDefault("userId", "default");
         String tableName = request.getOrDefault("tableName", "");
 
+        if (!InputValidator.isValidUserId(userId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid userId"));
+        }
         if (sql == null || sql.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "missing 'query' field"));
+        }
+        if (tableName.isEmpty() || !InputValidator.isValidTableName(tableName)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid table name"));
         }
 
         // Rate limiting: max 3 concurrent, 50 per day
@@ -52,10 +59,10 @@ public class QueryController {
 
         TableMetadata meta = dynamoService.getTable(userId, tableName);
         if (meta == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "table not found: " + tableName));
+            return ResponseEntity.badRequest().body(Map.of("error", "table not found"));
         }
         if (!"READY".equals(meta.getStatus())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "table not ready, status: " + meta.getStatus()));
+            return ResponseEntity.badRequest().body(Map.of("error", "table not ready"));
         }
 
         String queryId = "qr_" + System.currentTimeMillis();
@@ -78,6 +85,13 @@ public class QueryController {
     public ResponseEntity<?> getStatus(
             @PathVariable String queryId,
             @RequestParam(value = "userId", defaultValue = "default") String userId) {
+        if (!InputValidator.isValidUserId(userId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid userId"));
+        }
+        if (!InputValidator.isValidQueryId(queryId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid queryId"));
+        }
+
         QueryMetadata qm = dynamoService.getQuery(userId, queryId);
         if (qm == null) return ResponseEntity.notFound().build();
 
@@ -93,6 +107,10 @@ public class QueryController {
     public ResponseEntity<byte[]> downloadResults(
             @PathVariable String queryId,
             @RequestParam(value = "userId", defaultValue = "default") String userId) {
+        if (!InputValidator.isValidUserId(userId) || !InputValidator.isValidQueryId(queryId)) {
+            return ResponseEntity.badRequest().build();
+        }
+
         String resultKey = "results/" + userId + "/" + queryId + ".csv";
         try {
             byte[] data = s3Service.downloadFile(resultKey);

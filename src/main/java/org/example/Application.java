@@ -19,7 +19,8 @@ import org.example.service.*;
     S3Service.class,
     DynamoService.class,
     SqsService.class,
-    CorsConfig.class
+    CorsConfig.class,
+    org.example.config.GlobalExceptionHandler.class
 })
 public class Application {
 
