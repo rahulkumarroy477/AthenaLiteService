@@ -4,12 +4,12 @@ S3-triggered Python Lambda that processes uploaded data files. Converts raw file
 
 ## Architecture Role
 
-Triggered automatically when a file lands in `s3://athenalite-data-ap/raw/`. It:
+Triggered automatically when a file lands in `s3://athenalite-data-ap-south-1/raw/`. It:
 
 1. Downloads the raw file (CSV, JSON, or Parquet)
 2. Parses column names and types using pandas
 3. Converts to Parquet format (if not already)
-4. Uploads Parquet to `s3://athenalite-data-ap/parquet/{userId}/{tableName}.parquet`
+4. Uploads Parquet to `s3://athenalite-data-ap-south-1/parquet/{userId}/{tableName}.parquet`
 5. Writes table metadata to DynamoDB with status `READY`
 
 If processing fails, metadata is written with status `FAILED`.
@@ -39,7 +39,7 @@ Table: `AthenaLiteTables`
 
 | Variable | Value |
 |----------|-------|
-| `S3_BUCKET` | `athenalite-data-ap` |
+| `S3_BUCKET` | `athenalite-data-ap-south-1` |
 | `DYNAMODB_TABLE` | `AthenaLiteTables` |
 
 ## Lambda Configuration

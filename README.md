@@ -37,7 +37,7 @@ All endpoints accept `userId` as a query parameter (defaults to `default`).
 
 | Resource | Name |
 |----------|------|
-| S3 Bucket | `athenalite-data-ap` |
+| S3 Bucket | `athenalite-data-ap-south-1` |
 | DynamoDB | `AthenaLiteTables` (table metadata) |
 | DynamoDB | `AthenaLiteQueryMetadata` (query tracking) |
 | SQS Queue | `AthenaLiteQueryQueue` |
@@ -46,7 +46,7 @@ All endpoints accept `userId` as a query parameter (defaults to `default`).
 
 | Variable | Value |
 |----------|-------|
-| `S3_BUCKET` | `athenalite-data-ap` |
+| `S3_BUCKET` | `athenalite-data-ap-south-1` |
 | `DYNAMODB_TABLE` | `AthenaLiteTables` |
 | `DYNAMODB_QUERY_TABLE` | `AthenaLiteQueryMetadata` |
 | `QUERY_QUEUE_URL` | SQS queue URL |

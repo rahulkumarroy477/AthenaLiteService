@@ -18,13 +18,16 @@ jobs:
       - name: Build
         run: mvn clean package -q -DskipTests -DskipTests
 
-      - name: Deploy to Lambda
+      - name: Deploy to Lambda via S3
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ap-south-1
         run: |
           ZIP_FILE=$(find target -name "*-lambda-package.zip" | head -1)
+          S3_KEY="lambda-deployments/AthenaLite-Service-$(date +%s).zip"
+          aws s3 cp "$ZIP_FILE" "s3://athenalite-data-ap-south-1/$S3_KEY"
           aws lambda update-function-code \
             --function-name AthenaLite-Service \
-            --zip-file fileb://$ZIP_FILE
+            --s3-bucket athenalite-data-ap-south-1 \
+            --s3-key "$S3_KEY"
