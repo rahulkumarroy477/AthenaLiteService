@@ -6,17 +6,23 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+
+import java.time.Duration;
 
 @Service
 public class S3Service {
 
     private final S3Client s3;
+    private final S3Presigner presigner;
     private final String bucket;
 
     public S3Service(@Value("${aws.s3.region}") String region,
                      @Value("${aws.s3.bucket}") String bucket) {
         this.bucket = bucket;
         this.s3 = S3Client.builder().region(Region.of(region)).build();
+        this.presigner = S3Presigner.builder().region(Region.of(region)).build();
     }
 
     public void uploadFile(String key, byte[] content, String contentType) {
@@ -42,4 +48,13 @@ public class S3Service {
     }
 
     public String getBucket() { return bucket; }
+
+    public String generatePresignedPutUrl(String key, String contentType) {
+        PutObjectRequest putRequest = PutObjectRequest.builder()
+                .bucket(bucket).key(key).contentType(contentType).build();
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(5))
+                .putObjectRequest(putRequest).build();
+        return presigner.presignPutObject(presignRequest).url().toString();
+    }
 }

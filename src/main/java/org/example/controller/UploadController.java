@@ -23,6 +23,49 @@ public class UploadController {
         this.s3Service = s3Service;
     }
 
+    @GetMapping("/upload/presigned-url")
+    public ResponseEntity<Map<String, Object>> getPresignedUrl(
+            @RequestParam("fileName") String fileName,
+            @RequestParam(value = "userId", defaultValue = "default") String userId,
+            @RequestParam(value = "tableName", required = false) String customTableName) {
+
+        if (fileName == null || fileName.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "missing fileName"));
+        }
+
+        String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+        if (!ALLOWED.contains(extension)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "unsupported file type: " + extension));
+        }
+
+        String tableName = customTableName != null && !customTableName.isBlank()
+                ? InputValidator.sanitizeTableName(customTableName)
+                : InputValidator.sanitizeTableName(fileName.replaceAll("\\.[^.]+$", ""));
+
+        if (!InputValidator.isValidTableName(tableName)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid table name"));
+        }
+        if (!InputValidator.isValidUserId(userId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid userId"));
+        }
+
+        String s3Key = "raw/" + userId + "/" + tableName + "." + extension;
+        String contentType = switch (extension) {
+            case "csv" -> "text/csv";
+            case "json" -> "application/json";
+            default -> "application/octet-stream";
+        };
+
+        String presignedUrl = s3Service.generatePresignedPutUrl(s3Key, contentType);
+        log.info("Generated presigned URL for {}", s3Key);
+
+        return ResponseEntity.ok(Map.of(
+                "presignedUrl", presignedUrl,
+                "s3Key", s3Key,
+                "table", tableName
+        ));
+    }
+
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> upload(
             @RequestParam("file") MultipartFile file,
